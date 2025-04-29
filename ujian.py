@@ -1,115 +1,75 @@
-# ujian.py
-
 import tkinter as tk
-from tkinter import messagebox, ttk
+from tkinter import ttk, messagebox
 import random
 from soal import soal_ujian
 
 def tampil_menu_ujian(frame_utama, nama_peserta):
-    # Bersihkan frame
     for widget in frame_utama.winfo_children():
         widget.destroy()
 
-    # Style configuration
     style = ttk.Style()
-    style.configure('TFrame', background='#f0f0f0')
-    style.configure('TLabel', background='#f0f0f0', foreground='black', font=('Helvetica', 11))
-    style.configure('Title.TLabel', font=('Helvetica', 16, 'bold'))
-    style.configure('Submit.TButton', font=('Helvetica', 12, 'bold'), foreground='Black', background='#4CAF50')
+    style.theme_use('clam')
+    style.configure("TButton", padding=10, font=("Segoe UI", 12, "bold"))
+    style.configure("TLabel", font=("Segoe UI", 15,))
+    style.configure("TFrame", background="#f2f2f2")
 
-    # Main container
-    main_container = ttk.Frame(frame_utama)
-    main_container.pack(fill='both', expand=True, padx=20, pady=10)
-
-    # Canvas and scrollbar setup
-    canvas = tk.Canvas(main_container, highlightthickness=0, bg='#f0f0f0')
-    scrollbar = ttk.Scrollbar(main_container, orient="vertical", command=canvas.yview)
-    scrollable_frame = ttk.Frame(canvas)
-
-    # Perbaikan di bagian ini
-    def configure_scroll_region(e):
-        canvas.configure(scrollregion=canvas.bbox("all"))
-    
-    scrollable_frame.bind("<Configure>", configure_scroll_region)
-    
-    canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-    canvas.configure(yscrollcommand=scrollbar.set)
+    canvas = tk.Canvas(frame_utama, bg="#f2f2f2", highlightthickness=0)
+    scrollbar = ttk.Scrollbar(frame_utama, orient="vertical", command=canvas.yview)
 
     canvas.pack(side="left", fill="both", expand=True)
     scrollbar.pack(side="right", fill="y")
 
-    # Mouse wheel scrolling
+    scrollable_container = ttk.Frame(canvas, style="TFrame")  # container utama di canvas
+    canvas.create_window((0, 0), window=scrollable_container, anchor="n")
+
+    canvas.configure(yscrollcommand=scrollbar.set)
+
     def _on_mousewheel(event):
         canvas.yview_scroll(int(-1*(event.delta/120)), "units")
     canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
-    # Header section
-    header_frame = ttk.Frame(scrollable_frame)
-    header_frame.pack(fill='x', pady=(0, 20))
-    
-    ttk.Label(header_frame, 
-             text=f"Selamat mengerjakan, {nama_peserta}!",
-             style='Title.TLabel').pack(pady=(10, 5))
-    ttk.Label(header_frame, 
-             text="Silakan jawab semua soal berikut:",
-             style='TLabel').pack()
+    # WRAPPER TENGAH
+    wrapper = ttk.Frame(scrollable_container, style="TFrame")
+    wrapper.pack(anchor="center", pady=20)  # PUSATKAN SECARA HORIZONTAL
 
-    # Soal section
+    # BATASI LEBAR agar tidak terlalu lebar
+    inner_frame = ttk.Frame(wrapper, style="TFrame")
+    inner_frame.pack()
+
+    ttk.Label(inner_frame, text=f"Selamat datang, {nama_peserta}!", font=("Segoe UI", 16, "bold")).pack(pady=(20, 5))
+    ttk.Label(inner_frame, text="Silakan jawab soal berikut:", font=("Segoe UI", 12)).pack(pady=(0, 20))
+
     soal_acak = random.sample(soal_ujian, len(soal_ujian))
     jawaban_peserta = {}
 
     for idx, soal in enumerate(soal_acak[:20], start=1):
-        question_frame = ttk.Frame(scrollable_frame, relief=tk.GROOVE, borderwidth=1, padding=10)
-        question_frame.pack(fill='x', pady=8, padx=5)
-        
-        ttk.Label(question_frame, 
-                 text=f"Soal {idx}: {soal['soal']}",
-                 wraplength=600,
-                 justify='left').pack(anchor='w')
-        
+        ttk.Label(inner_frame, text=f"{idx}. {soal['soal']}", wraplength=700, justify="left").pack(anchor="w", padx=30, pady=(10, 0))
+
         var = tk.StringVar(value="")
         jawaban_peserta[idx] = {"var": var, "jawaban_benar": soal['jawaban']}
-        
+
         pilihan_acak = random.sample(soal['pilihan'], len(soal['pilihan']))
         for pilihan in pilihan_acak:
-            rb = tk.Radiobutton(
-                question_frame,
-                text=pilihan,
-                variable=var,
-                value=pilihan,
-                bg='#f0f0f0',
-                fg='#000000',
-                activebackground='#f0f0f0',
-                selectcolor='#f0f0f0',
-                relief=tk.FLAT,
-                highlightthickness=0,
-                padx=5,
-                pady=2
-            )
-            rb.pack(anchor='w', padx=15, pady=2)
+            ttk.Radiobutton(inner_frame, text=pilihan, variable=var, value=pilihan).pack(anchor="w", padx=50, pady=2)
 
-    # Submit button
-    submit_frame = ttk.Frame(scrollable_frame)
-    submit_frame.pack(fill='x', pady=20)
-    
-    submit_btn = ttk.Button(submit_frame, 
-                          text="Kirim Jawaban",
-                          command=lambda: submit_jawaban(jawaban_peserta, frame_utama),
-                          style='Submit.TButton')
-    submit_btn.pack(pady=10)
+    def submit_jawaban():
+        benar = 0
+        total = len(jawaban_peserta)
 
-def submit_jawaban(jawaban_peserta, frame_utama):
-    benar = 0
-    total = len(jawaban_peserta)
+        for idx, data in jawaban_peserta.items():
+            if data["var"].get() == data["jawaban_benar"]:
+                benar += 1
 
-    for idx, data in jawaban_peserta.items():
-        if data["var"].get() == data["jawaban_benar"]:
-            benar += 1
+        nilai = int((benar / total) * 100)
+        messagebox.showinfo("Hasil Ujian", f"Ujian selesai!\nJawaban benar: {benar}/{total}\nNilai Anda: {nilai}")
 
-    nilai = int((benar / total) * 100)
-    messagebox.showinfo("Hasil Ujian", 
-                       f"Ujian selesai!\n\nJawaban benar: {benar}/{total}\nNilai Anda: {nilai}")
-    
-    # Kembali ke login
-    from main import tampil_login_wrapper
-    tampil_login_wrapper(frame_utama)
+        from main import tampil_login_wrapper
+        tampil_login_wrapper()
+
+    ttk.Button(inner_frame, text="Kirim Jawaban", command=submit_jawaban).pack(pady=20, ipadx=20, ipady=8)
+
+    # Pastikan canvas bisa scroll
+    scrollable_container.bind(
+        "<Configure>",
+        lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+    )
